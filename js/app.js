@@ -58,21 +58,49 @@ function drawMenu() {
   lcd.text("SEL=MENU", 8, 132, PAL.dark);
 }
 
+function applyRomPayload(data) {
+  roms = data.roms || [];
+  const pathInput = document.getElementById("rom-path");
+  if (pathInput && data.customPath) pathInput.value = data.customPath;
+  romStatus.textContent = roms.length
+    ? `${roms.length} cartucho(s) · ${data.folders.join(" | ")}`
+    : `No hay .gb/.gbc/.zip. ${data.folders?.length ? "Carpetas: " + data.folders.join(" | ") : "Definí una ruta."}`;
+  renderRomSidebar();
+  if (mode === "menu") drawMenu();
+}
+
 async function refreshRoms() {
   try {
     const res = await fetch("/api/roms");
     if (!res.ok) throw new Error("http");
-    const data = await res.json();
-    roms = data.roms || [];
-    romStatus.textContent = roms.length
-      ? `${roms.length} cartucho(s) en ${data.folders.join(" | ")}`
-      : `No hay .gb/.gbc. Carpetas: ${data.folders.join(" | ")}`;
+    applyRomPayload(await res.json());
   } catch {
     roms = [];
-    romStatus.textContent = "Servidor local no listó ROMs. Usá “Abrir archivo”.";
+    romStatus.textContent = "Servidor local no listó ROMs. Usá “Abrir archivo” o una ruta.";
+    renderRomSidebar();
+    if (mode === "menu") drawMenu();
   }
-  renderRomSidebar();
-  if (mode === "menu") drawMenu();
+}
+
+async function setRomFolder() {
+  const pathInput = document.getElementById("rom-path");
+  const path = pathInput.value.trim();
+  romStatus.textContent = "Guardando carpeta…";
+  try {
+    const res = await fetch("/api/rom-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.ok === false) {
+      romStatus.textContent = data.error || "No se pudo usar esa carpeta.";
+      return;
+    }
+    applyRomPayload(data);
+  } catch {
+    romStatus.textContent = "No se pudo guardar la ruta. ¿Está corriendo el server?";
+  }
 }
 
 function renderRomSidebar() {
@@ -218,6 +246,10 @@ power.addEventListener("change", () => {
 });
 
 document.getElementById("refresh-roms").addEventListener("click", refreshRoms);
+document.getElementById("rom-path-btn").addEventListener("click", setRomFolder);
+document.getElementById("rom-path").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") setRomFolder();
+});
 document.getElementById("rom-file").addEventListener("change", async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;

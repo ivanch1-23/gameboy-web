@@ -146,10 +146,48 @@ body.expanded .gb-stage {
   background: #2a220f;
 }
 
-.dock-actions {
+.path-label {
+  display: block;
+  margin: 10px 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: #c9a227;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.path-row {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.path-row input {
+  flex: 1;
+  min-width: 0;
+  background: #1c160c;
+  color: #efe6c8;
+  border: 1px solid #4a3c20;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: 12px ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.path-row input:focus {
+  outline: 0;
+  border-color: #c9a227;
+}
+
+.path-row button {
+  flex: 0 0 auto;
+  background: #c9a227;
+  color: #1a1204;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .dock-actions button,

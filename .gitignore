@@ -4,6 +4,7 @@ desktop.ini
 __pycache__/
 *.pyc
 .env
+rom-folder.json
 roms/*.gb
 roms/*.gbc
 roms/*.sgb

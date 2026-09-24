@@ -25,17 +25,19 @@
         <p class="dock-hint" id="size-hint">Tamaño PC: 85%</p>
         <hr class="dock-rule" />
         <p class="dock-kicker">CART SLOT</p>
-        <h1>ROMs en D:</h1>
-        <p class="dock-hint">
-          Tirá <code>.gb</code> / <code>.gbc</code> en
-          <code>D:\gameboy-browser\roms</code> o <code>D:\roms</code> y recargá la lista.
-        </p>
+        <h1>Tus ROMs</h1>
+        <p class="dock-hint">Pegá la carpeta donde bajaste los <code>.gb</code> / <code>.gbc</code> (cualquier disco) y dale a Usar ruta.</p>
+        <label class="path-label" for="rom-path">Carpeta de ROMs</label>
+        <div class="path-row">
+          <input id="rom-path" type="text" spellcheck="false" placeholder="C:\Roms o D:\juegos\gb" />
+          <button type="button" id="rom-path-btn">Usar ruta</button>
+        </div>
         <ul id="rom-list" class="rom-list"></ul>
         <div class="dock-actions">
           <button type="button" id="refresh-roms">Recargar ROMs</button>
           <label class="file-btn">
             Abrir archivo
-            <input id="rom-file" type="file" accept=".gb,.gbc,.bin" />
+            <input id="rom-file" type="file" accept=".gb,.gbc,.bin,.zip" />
           </label>
         </div>
         <p id="rom-status" class="dock-status">Buscando cartuchos…</p>
