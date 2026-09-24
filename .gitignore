@@ -1,0 +1,14 @@
+.DS_Store
+Thumbs.db
+desktop.ini
+__pycache__/
+*.pyc
+.env
+roms/*.gb
+roms/*.gbc
+roms/*.sgb
+roms/*.bin
+roms/*.zip
+roms/*.7z
+roms/*.rar
+!roms/README.txt
