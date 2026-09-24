@@ -3,6 +3,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 import json
 import os
+import subprocess
 import sys
 import zipfile
 
@@ -26,8 +27,43 @@ def load_custom_folder():
     return None
 
 
-def save_custom_folder(path: Path):
+def save_custom_folder(path: Path | None):
+    if path is None:
+        if CONFIG.exists():
+            CONFIG.unlink()
+        return
     CONFIG.write_text(json.dumps({"path": str(path)}, indent=2), encoding="utf-8")
+
+
+def rom_payload():
+    custom = load_custom_folder()
+    return {
+        "roms": list_roms(),
+        "folders": [str(p) for p in scan_folders()],
+        "customPath": str(custom) if custom else "",
+    }
+
+
+def pick_folder():
+    script = (
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        "$d = New-Object System.Windows.Forms.FolderBrowserDialog; "
+        "$d.Description = 'Elegi la carpeta donde estan tus ROMs'; "
+        "$d.ShowNewFolderButton = $true; "
+        "if ($d.ShowDialog() -eq 'OK') { [Console]::Out.Write($d.SelectedPath) }"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-STA", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    path = (result.stdout or "").strip()
+    return Path(path) if path else None
 
 
 def scan_folders():
@@ -133,15 +169,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/roms":
-            custom = load_custom_folder()
-            json_response(
-                self,
-                {
-                    "roms": list_roms(),
-                    "folders": [str(p) for p in scan_folders()],
-                    "customPath": str(custom) if custom else "",
-                },
-            )
+            json_response(self, rom_payload())
             return
 
         if self.path.startswith("/extrom?"):
@@ -167,6 +195,19 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        if self.path == "/api/pick-folder":
+            _ = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+            chosen = pick_folder()
+            if chosen is None or not str(chosen):
+                json_response(self, {"ok": True, "cancelled": True, **rom_payload()})
+                return
+            if not chosen.is_dir():
+                json_response(self, {"ok": False, "error": "Carpeta inválida"}, 400)
+                return
+            save_custom_folder(chosen.resolve())
+            json_response(self, {"ok": True, "cancelled": False, **rom_payload()})
+            return
+
         if self.path != "/api/rom-folder":
             self.send_error(404)
             return
@@ -178,17 +219,7 @@ class Handler(SimpleHTTPRequestHandler):
             return
         raw = str(body.get("path") or "").strip().strip('"')
         if not raw:
-            save_custom_folder(LOCAL_ROMS)
-            custom = load_custom_folder()
-            json_response(
-                self,
-                {
-                    "ok": True,
-                    "customPath": str(custom) if custom else "",
-                    "roms": list_roms(),
-                    "folders": [str(p) for p in scan_folders()],
-                },
-            )
+            json_response(self, {"ok": False, "error": "Escribí o elegí una carpeta"}, 400)
             return
         path = Path(raw).expanduser()
         if not path.is_dir():
@@ -199,15 +230,7 @@ class Handler(SimpleHTTPRequestHandler):
             )
             return
         save_custom_folder(path.resolve())
-        json_response(
-            self,
-            {
-                "ok": True,
-                "customPath": str(path.resolve()),
-                "roms": list_roms(),
-                "folders": [str(p) for p in scan_folders()],
-            },
-        )
+        json_response(self, {"ok": True, **rom_payload()})
 
 
 def main():

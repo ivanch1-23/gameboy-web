@@ -155,39 +155,50 @@ body.expanded .gb-stage {
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 
-.path-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.path-row input {
-  flex: 1;
-  min-width: 0;
+.path-input {
+  display: block;
+  width: 100%;
   background: #1c160c;
   color: #efe6c8;
-  border: 1px solid #4a3c20;
+  border: 1px solid #c9a227;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px 10px;
   font: 12px ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 
-.path-row input:focus {
+.path-input:focus {
   outline: 0;
-  border-color: #c9a227;
+  box-shadow: 0 0 0 2px #c9a22766;
 }
 
-.path-row button {
-  flex: 0 0 auto;
+.path-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.path-actions button,
+.browse-btn {
+  flex: 1;
   background: #c9a227;
   color: #1a1204;
   border: 0;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px 10px;
   font-weight: 800;
   cursor: pointer;
-  font-size: 12px;
-  white-space: nowrap;
+  font-size: 13px;
+  font-family: inherit;
+  text-align: center;
+}
+
+.browse-btn {
+  background: #efe6c8;
+  display: inline-block;
+}
+
+.browse-btn input {
+  display: none;
 }
 
 .dock-actions button,
