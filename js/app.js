@@ -252,7 +252,27 @@ function tick(now) {
 
 pad.bind();
 initShells({ audio });
+
+function initMobileMenu() {
+  const toggle = document.getElementById("menu-toggle");
+  const backdrop = document.getElementById("menu-backdrop");
+  if (!toggle || !backdrop) return;
+
+  function setOpen(open) {
+    document.body.classList.toggle("menu-open", open);
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toggle.setAttribute("aria-label", open ? "Cerrar menú" : "Abrir menú");
+    backdrop.hidden = !open;
+  }
+
+  toggle.addEventListener("click", () => {
+    setOpen(!document.body.classList.contains("menu-open"));
+  });
+  backdrop.addEventListener("click", () => setOpen(false));
+}
+
 initPwa();
+initMobileMenu();
 window.addEventListener("pointerdown", () => audio.ensure(), { once: true });
 window.addEventListener("keydown", () => audio.ensure(), { once: true });
 power.addEventListener("change", () => {

@@ -14,6 +14,10 @@
     <link rel="stylesheet" href="css/gameboy.css" />
   </head>
   <body>
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Abrir menú" aria-expanded="false">
+      <span>›</span><span>›</span><span>›</span>
+    </button>
+    <div class="menu-backdrop" id="menu-backdrop" hidden></div>
     <div class="desk">
       <aside class="dock">
         <p class="dock-kicker">SHELL LAB</p>
@@ -47,8 +51,9 @@
         <ul id="rom-list" class="rom-list"></ul>
         <div class="dock-actions">
           <button type="button" id="refresh-roms">Recargar lista</button>
-          <button type="button" id="install-pwa" hidden>Instalar app</button>
+          <button type="button" id="install-pwa">Instalar / descargar app</button>
         </div>
+        <p id="install-hint" class="dock-hint" hidden></p>
         <p id="rom-status" class="dock-status">Buscando cartuchos…</p>
         <p class="keys">
           D-pad / WASD · A = X/K · B = Z/J · START = Enter · SELECT = Shift
