@@ -1,4 +1,4 @@
-const CACHE = "gb-pwa-v2";
+const CACHE = "gb-pwa-v4";
 const CORE = [
   "./",
   "./index.html",
@@ -42,6 +42,23 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  const networkFirst = /\.(?:js|css|html|webmanifest)$/.test(url.pathname) || url.pathname.endsWith("/");
+
+  if (networkFirst) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const copy = res.clone();
+            caches.open(CACHE).then((cache) => cache.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req).then((cached) => cached || caches.match("./index.html")))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then((cached) => {

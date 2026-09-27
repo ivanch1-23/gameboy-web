@@ -734,32 +734,37 @@ body.expanded #size-expand {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0;
+    gap: 1px;
     position: fixed;
     top: 10px;
     left: 10px;
     z-index: 50;
-    width: 52px;
+    width: 56px;
     height: 44px;
-    padding: 0 4px;
+    padding: 0 8px;
     border: 1px solid #c9a227;
     border-radius: 12px;
     background: #120e08ee;
     color: #ffd166;
-    font-size: 28px;
+    font-size: 22px;
+    font-weight: 700;
     line-height: 1;
-    letter-spacing: -0.28em;
+    letter-spacing: 0;
     cursor: pointer;
     box-shadow: 0 8px 24px #0008;
   }
 
   .menu-toggle span {
     display: inline-block;
-    transform: translateX(-2px);
   }
 
   body.menu-open .menu-toggle {
     transform: rotate(180deg);
+  }
+
+  .size-row,
+  #size-hint {
+    display: none;
   }
 
   .menu-backdrop {
@@ -782,10 +787,15 @@ body.expanded #size-expand {
     transition: transform 0.22s ease;
     z-index: 40;
     padding-top: 58px;
+    overflow-y: auto;
   }
 
   body.menu-open {
     overflow: hidden;
+  }
+
+  body.menu-open .dock {
+    transform: translateX(0);
   }
 
   .gb-stage,
@@ -795,8 +805,9 @@ body.expanded #size-expand {
     align-items: center;
   }
 
-  .gb {
-    --gb-scale: 0.72;
+  .gb,
+  body.expanded .gb {
+    --gb-scale: 0.62 !important;
   }
 }
 

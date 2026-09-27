@@ -55,10 +55,23 @@ export function initShells({ audio } = {}) {
 
   state.scale = nearestScale(state.scale);
 
+  function isPhone() {
+    return window.matchMedia("(max-width: 860px)").matches || window.innerWidth <= 860;
+  }
+
   function apply() {
     document.body.dataset.skin = state.skin;
     gb.dataset.skin = state.skin;
-    gb.style.setProperty("--gb-scale", String(state.scale));
+    gb.style.removeProperty("--gb-scale");
+    if (isPhone()) {
+      const phoneScale = Math.max(
+        0.48,
+        Math.min(0.78, (window.innerWidth - 20) / 420, (window.innerHeight - 28) / 728)
+      );
+      gb.style.setProperty("--gb-scale", String(phoneScale), "important");
+    } else {
+      gb.style.setProperty("--gb-scale", String(state.scale));
+    }
     document.body.classList.toggle("expanded", state.expanded);
     const skin = SKINS.find((s) => s.id === state.skin) || SKINS[0];
     label.textContent = skin.name;
@@ -122,4 +135,5 @@ export function initShells({ audio } = {}) {
   });
 
   apply();
+  window.addEventListener("resize", apply);
 }
