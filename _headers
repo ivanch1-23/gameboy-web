@@ -1,7 +1,6 @@
-/*
-  Cloudflare Pages
-  https://developers.cloudflare.com/pages/
-*/
+# Cloudflare Pages custom headers
+# https://developers.cloudflare.com/pages/configuration/headers/
+
 /*.wasm
   Content-Type: application/wasm
   Cache-Control: public, max-age=31536000, immutable
