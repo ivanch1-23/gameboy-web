@@ -142,15 +142,15 @@ async function loadStoredRom(id) {
 }
 
 async function startRom(buffer, name, saveId, saveRam) {
-  audio.ensure();
+  const ctx = audio.ensure();
+  if (ctx.state === "suspended") await ctx.resume().catch(() => {});
   mode = "rom";
   try {
-    if (emu.audioCtx) await emu.audioCtx.resume?.();
     emu.onSaveRam = (sid, ram) => {
       if (sid) putSave(sid, ram);
     };
-    await emu.load(buffer, name, { saveId: saveId || name, saveRam });
-    if (emu.audioCtx) await emu.audioCtx.resume();
+    await emu.load(buffer, name, { saveId: saveId || name, saveRam, audioCtx: ctx });
+    await emu.unlockAudio();
     romStatus.textContent = `Jugando ${name}`;
   } catch (err) {
     romStatus.textContent = `No se pudo cargar: ${err.message || err}`;
@@ -271,10 +271,16 @@ function initMobileMenu() {
   backdrop.addEventListener("click", () => setOpen(false));
 }
 
+function unlockAudio() {
+  audio.ensure();
+  emu.unlockAudio?.();
+}
+
 initPwa();
 initMobileMenu();
-window.addEventListener("pointerdown", () => audio.ensure(), { once: true });
-window.addEventListener("keydown", () => audio.ensure(), { once: true });
+window.addEventListener("pointerdown", unlockAudio);
+window.addEventListener("touchstart", unlockAudio, { passive: true });
+window.addEventListener("keydown", unlockAudio);
 power.addEventListener("change", () => {
   audio.ensure();
   if (power.checked) powerOn();

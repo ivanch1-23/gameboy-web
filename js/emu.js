@@ -31,7 +31,7 @@ export class GbEmu {
     this.audioCtx = null;
     this.lastRaf = 0;
     this.leftover = 0;
-    this.volume = 0.45;
+    this.volume = 0.85;
     this.ready = false;
     this.saveId = null;
     this.saveTimer = 0;
@@ -52,7 +52,19 @@ export class GbEmu {
     const size = (romBuffer.byteLength + 0x7fff) & ~0x7fff;
     this.romPtr = this.module._malloc(size);
     wasmBytes(this.module, this.romPtr, size).fill(0).set(new Uint8Array(romBuffer));
-    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    this.ownsAudio = false;
+    if (extra?.audioCtx) {
+      this.audioCtx = extra.audioCtx;
+    } else {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      this.ownsAudio = true;
+    }
+    if (this.audioCtx.state === "suspended") {
+      await this.audioCtx.resume().catch(() => {});
+    }
+    this.audioGain = this.audioCtx.createGain();
+    this.audioGain.gain.value = this.volume;
+    this.audioGain.connect(this.audioCtx.destination);
     this.e = this.module._emulator_new_simple(
       this.romPtr,
       size,
@@ -122,8 +134,19 @@ export class GbEmu {
     }
   }
 
+  async unlockAudio() {
+    if (!this.audioCtx) return;
+    if (this.audioCtx.state === "suspended") {
+      await this.audioCtx.resume().catch(() => {});
+    }
+  }
+
   pushAudio() {
-    if (!this.audioCtx || this.audioCtx.state !== "running") return;
+    if (!this.audioCtx) return;
+    if (this.audioCtx.state === "suspended") {
+      this.audioCtx.resume().catch(() => {});
+      return;
+    }
     const src = wasmBytes(this.module, this.audioPtr, this.audioCap);
     const now = this.audioCtx.currentTime;
     const latency = now + AUDIO_LATENCY_SEC;
@@ -133,12 +156,12 @@ export class GbEmu {
     const c0 = buffer.getChannelData(0);
     const c1 = buffer.getChannelData(1);
     for (let i = 0; i < AUDIO_FRAMES; i += 1) {
-      c0[i] = (src[2 * i] * this.volume) / 255;
-      c1[i] = (src[2 * i + 1] * this.volume) / 255;
+      c0[i] = (src[2 * i] - 128) / 128;
+      c1[i] = (src[2 * i + 1] - 128) / 128;
     }
     const node = this.audioCtx.createBufferSource();
     node.buffer = buffer;
-    node.connect(this.audioCtx.destination);
+    node.connect(this.audioGain || this.audioCtx.destination);
     node.start(this.audioStart);
     this.audioStart += AUDIO_FRAMES / this.audioCtx.sampleRate;
   }
@@ -210,9 +233,18 @@ export class GbEmu {
       this.module._free(this.romPtr);
       this.romPtr = 0;
     }
-    if (this.audioCtx) {
-      this.audioCtx.close().catch(() => {});
-      this.audioCtx = null;
+    if (this.audioGain) {
+      try {
+        this.audioGain.disconnect();
+      } catch {
+        /* already disconnected */
+      }
     }
+    if (this.ownsAudio && this.audioCtx) {
+      this.audioCtx.close().catch(() => {});
+    }
+    this.audioCtx = null;
+    this.audioGain = null;
+    this.ownsAudio = false;
   }
 }
