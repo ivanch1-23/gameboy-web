@@ -17,6 +17,7 @@ function randCell(snake) {
 export class Snake {
   constructor(audio) {
     this.audio = audio;
+    this.best = 0;
     this.reset();
   }
 
@@ -81,7 +82,9 @@ export class Snake {
     lcd.rect(OX - 2, OY - 2, COLS * SIZE + 4, ROWS * SIZE + 4, PAL.dark);
     lcd.rect(OX, OY, COLS * SIZE, ROWS * SIZE, PAL.lightest);
     lcd.text("SNAKE", 8, 4, PAL.darkest);
-    lcd.text(String(this.score).padStart(4, "0"), 120, 4, PAL.darkest);
+    lcd.text(String(this.score).padStart(4, "0"), 88, 4, PAL.darkest);
+    lcd.text("BEST", 8, 132, PAL.dark);
+    lcd.text(String(this.best || 0).padStart(4, "0"), 48, 132, PAL.darkest);
 
     lcd.rect(OX + this.food.x * SIZE, OY + this.food.y * SIZE, SIZE - 1, SIZE - 1, PAL.darkest);
     this.snake.forEach((s, i) => {
@@ -89,9 +92,35 @@ export class Snake {
     });
 
     if (this.over) {
-      lcd.rect(36, 58, 88, 28, PAL.lightest);
-      lcd.centerText("GAME OVER", 64, PAL.darkest);
-      lcd.centerText("START", 76, PAL.dark);
+      lcd.rect(36, 50, 88, 40, PAL.lightest);
+      lcd.centerText("GAME OVER", 56, PAL.darkest);
+      lcd.centerText("BEST " + String(this.best || 0).padStart(4, "0"), 68, PAL.dark);
+      lcd.centerText("START", 80, PAL.dark);
     }
+  }
+
+  snapshot() {
+    return {
+      snake: this.snake.map((s) => ({ ...s })),
+      dir: { ...this.dir },
+      queued: { ...this.queued },
+      food: { ...this.food },
+      score: this.score,
+      over: this.over,
+      stepMs: this.stepMs,
+    };
+  }
+
+  restore(data) {
+    if (!data) return false;
+    this.snake = (data.snake || []).map((s) => ({ ...s }));
+    this.dir = data.dir || { x: 1, y: 0 };
+    this.queued = data.queued || { ...this.dir };
+    this.food = data.food || randCell(this.snake);
+    this.score = data.score || 0;
+    this.over = !!data.over;
+    this.stepMs = data.stepMs || 140;
+    this.last = performance.now();
+    return this.snake.length > 0;
   }
 }

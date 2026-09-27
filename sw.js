@@ -1,4 +1,4 @@
-const CACHE = "gb-pwa-v8";
+const CACHE = "gb-pwa-v9";
 const CORE = [
   "./",
   "./index.html",

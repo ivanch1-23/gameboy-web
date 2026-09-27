@@ -50,6 +50,13 @@
           </label>
         </div>
         <ul id="rom-list" class="rom-list"></ul>
+        <hr class="dock-rule" />
+        <p class="dock-kicker">SAVE STATES</p>
+        <h1>Estados</h1>
+        <p class="dock-hint">Al abrir un juego ves las partidas guardadas en la pantalla.</p>
+        <button type="button" id="save-state">Guardar estado</button>
+        <ul id="state-list" class="rom-list state-list"></ul>
+        <p id="state-status" class="dock-status">Abrí un juego para ver y guardar estados.</p>
         <div class="dock-actions">
           <button type="button" id="refresh-roms">Recargar lista</button>
           <button type="button" id="install-pwa">Instalar / descargar app</button>
@@ -59,7 +66,7 @@
         <p id="rom-status" class="dock-status">Buscando cartuchos…</p>
         <p class="keys">
           D-pad / WASD · A = X/K · B = Z/J · START = Enter · SELECT = Shift
-          · SELECT+START = menú
+          · SELECT+START = menú · Guardar estado en el panel
         </p>
       </aside>
 

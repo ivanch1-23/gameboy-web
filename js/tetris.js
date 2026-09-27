@@ -56,6 +56,7 @@ function collide(grid, cells, x, y) {
 export class Tetris {
   constructor(audio) {
     this.audio = audio;
+    this.best = 0;
     this.reset();
   }
 
@@ -217,13 +218,15 @@ export class Tetris {
     lcd.text("TETRIS", 96, 8, PAL.darkest);
     lcd.text("SCORE", 96, 24, PAL.dark);
     lcd.text(String(this.score).padStart(6, "0"), 96, 32, PAL.darkest);
-    lcd.text("LINE", 96, 48, PAL.dark);
-    lcd.text(String(this.lines), 96, 56, PAL.darkest);
-    lcd.text("LV", 96, 72, PAL.dark);
-    lcd.text(String(this.level), 96, 80, PAL.darkest);
-    lcd.text("NEXT", 96, 96, PAL.dark);
+    lcd.text("BEST", 96, 44, PAL.dark);
+    lcd.text(String(this.best || 0).padStart(6, "0"), 96, 52, PAL.darkest);
+    lcd.text("LINE", 96, 68, PAL.dark);
+    lcd.text(String(this.lines), 96, 76, PAL.darkest);
+    lcd.text("LV", 96, 92, PAL.dark);
+    lcd.text(String(this.level), 96, 100, PAL.darkest);
+    lcd.text("NEXT", 96, 112, PAL.dark);
     for (const [cx, cy] of this.cellsOf(this.next)) {
-      lcd.rect(100 + cx * 6, 108 + cy * 6, 5, 5, PAL.darkest);
+      lcd.rect(100 + cx * 6, 124 + cy * 6, 5, 5, PAL.darkest);
     }
 
     if (this.over) {
@@ -232,5 +235,37 @@ export class Tetris {
       lcd.text("OVER", 22, 68, PAL.darkest);
       lcd.text("START", 16, 78, PAL.dark);
     }
+  }
+
+  snapshot() {
+    return {
+      grid: this.grid.map((row) => row.slice()),
+      score: this.score,
+      lines: this.lines,
+      level: this.level,
+      over: this.over,
+      dropMs: this.dropMs,
+      piece: { ...this.piece },
+      next: { ...this.next },
+      x: this.x,
+      y: this.y,
+    };
+  }
+
+  restore(data) {
+    if (!data) return false;
+    this.grid = (data.grid || emptyGrid()).map((row) => row.slice());
+    this.score = data.score || 0;
+    this.lines = data.lines || 0;
+    this.level = data.level || 1;
+    this.over = !!data.over;
+    this.dropMs = data.dropMs || 700;
+    this.piece = data.piece || this.randomPiece();
+    this.next = data.next || this.randomPiece();
+    this.x = data.x ?? 3;
+    this.y = data.y ?? 0;
+    this.lastDrop = performance.now();
+    this.das = 0;
+    return true;
   }
 }

@@ -132,6 +132,14 @@ body.expanded .gb-stage {
   overflow: auto;
 }
 
+.state-list {
+  max-height: 160px;
+}
+
+#save-state {
+  background: #7ec8ff;
+}
+
 .rom-row {
   display: flex;
   gap: 6px;

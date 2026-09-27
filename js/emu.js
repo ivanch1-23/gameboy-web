@@ -36,6 +36,7 @@ export class GbEmu {
     this.saveId = null;
     this.saveTimer = 0;
     this.onSaveRam = null;
+    this.paused = false;
   }
 
   async init() {
@@ -100,10 +101,48 @@ export class GbEmu {
       this.loadExtRam(extra.saveRam);
     }
     this.running = true;
+    this.paused = !!extra.paused;
     this.lastRaf = 0;
     this.leftover = 0;
     this.audioStart = 0;
     this.raf = requestAnimationFrame((t) => this.loop(t));
+  }
+
+  pause(on = true) {
+    this.paused = on;
+  }
+
+  captureState() {
+    if (!this.e) return null;
+    const filePtr = this.module._state_file_data_new(this.e);
+    this.module._emulator_write_state(this.e, filePtr);
+    const ptr = this.module._get_file_data_ptr(filePtr);
+    const size = this.module._get_file_data_size(filePtr);
+    const copy = new Uint8Array(wasmBytes(this.module, ptr, size)).slice();
+    this.module._file_data_delete(filePtr);
+    return copy;
+  }
+
+  applyState(buffer) {
+    if (!this.e || !buffer) return false;
+    const src = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+    const filePtr = this.module._state_file_data_new(this.e);
+    const ptr = this.module._get_file_data_ptr(filePtr);
+    const size = this.module._get_file_data_size(filePtr);
+    const view = wasmBytes(this.module, ptr, size);
+    if (!src.byteLength || src.byteLength !== view.byteLength) {
+      this.module._file_data_delete(filePtr);
+      return false;
+    }
+    view.set(src);
+    this.module._emulator_read_state(this.e, filePtr);
+    this.module._file_data_delete(filePtr);
+    const frame = wasmBytes(this.module, this.framePtr, this.frameSize);
+    this.imageData.data.set(frame);
+    this.ctx2d.putImageData(this.imageData, 0, 0);
+    this.leftover = 0;
+    this.audioStart = 0;
+    return true;
   }
 
   applyPad(pad) {
@@ -201,6 +240,10 @@ export class GbEmu {
   loop(startMs) {
     if (!this.running) return;
     this.raf = requestAnimationFrame((t) => this.loop(t));
+    if (this.paused) {
+      this.lastRaf = startMs / 1000;
+      return;
+    }
     const startSec = startMs / 1000;
     const deltaSec = Math.max(startSec - (this.lastRaf || startSec), 0);
     const deltaTicks = Math.min(deltaSec, MAX_UPDATE_SEC) * CPU_TICKS_PER_SECOND;
@@ -219,6 +262,7 @@ export class GbEmu {
       if (ram?.byteLength) this.onSaveRam(this.saveId, ram);
     }
     this.running = false;
+    this.paused = false;
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = null;
     if (this.e) {
