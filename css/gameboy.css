@@ -127,6 +127,26 @@ body.expanded .gb-stage {
   overflow: auto;
 }
 
+.rom-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.rom-row button {
+  margin-bottom: 0;
+}
+
+.rom-row .rom-del {
+  width: auto;
+  flex: 0 0 36px;
+  text-align: center;
+}
+
+#install-pwa {
+  background: #7dffb3;
+}
+
 .rom-list li button {
   width: 100%;
   text-align: left;
@@ -135,7 +155,6 @@ body.expanded .gb-stage {
   border: 1px solid #4a3c20;
   border-radius: 8px;
   padding: 8px 10px;
-  margin-bottom: 6px;
   cursor: pointer;
   font: inherit;
 }

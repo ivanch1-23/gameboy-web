@@ -4,6 +4,8 @@ import { Tetris } from "./tetris.js";
 import { Snake } from "./snake.js";
 import { GbEmu } from "./emu.js";
 import { initShells } from "./skins.js";
+import { deleteRom, getRom, getSave, listRoms, putRom, putSave } from "./storage.js";
+import { initPwa } from "./pwa.js";
 
 const lcd = new LCD(document.getElementById("lcd"));
 const audio = new ChipTune();
@@ -58,76 +60,41 @@ function drawMenu() {
   lcd.text("SEL=MENU", 8, 132, PAL.dark);
 }
 
-function applyRomPayload(data, { fillPath = true } = {}) {
-  roms = data.roms || [];
-  const pathInput = document.getElementById("rom-path");
-  if (fillPath && pathInput && data.customPath != null && document.activeElement !== pathInput) {
-    pathInput.value = data.customPath;
-  }
+function applyRomList(rows) {
+  roms = rows || [];
   romStatus.textContent = roms.length
-    ? `${roms.length} cartucho(s)`
-    : "No hay .gb/.gbc/.zip en esa carpeta.";
+    ? `${roms.length} cartucho(s) en este navegador (IndexedDB)`
+    : "No hay ROMs guardadas. Examiná una carpeta o abrí un archivo.";
   renderRomSidebar();
   if (mode === "menu") drawMenu();
 }
 
 async function refreshRoms() {
   try {
-    const res = await fetch("/api/roms");
-    if (!res.ok) throw new Error("http");
-    applyRomPayload(await res.json());
+    applyRomList(await listRoms());
   } catch {
     roms = [];
-    romStatus.textContent = "Servidor local no listó ROMs. Usá Examinar o Abrir archivo.";
+    romStatus.textContent = "No se pudo leer IndexedDB. Probá Abrir archivo.";
     renderRomSidebar();
     if (mode === "menu") drawMenu();
   }
 }
 
-async function setRomFolder() {
-  const pathInput = document.getElementById("rom-path");
-  const path = pathInput.value.trim();
-  if (!path) {
-    romStatus.textContent = "Escribí una ruta o dale a Examinar…";
-    pathInput.focus();
-    return;
-  }
-  romStatus.textContent = "Cargando carpeta…";
-  try {
-    const res = await fetch("/api/rom-folder", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path }),
-    });
-    const data = await res.json();
-    if (!res.ok || data.ok === false) {
-      romStatus.textContent = data.error || "No se pudo usar esa carpeta.";
-      return;
-    }
-    applyRomPayload(data);
-  } catch {
-    romStatus.textContent = "No se pudo guardar la ruta. ¿Está corriendo el server?";
-  }
-}
-
-function loadPickedFolder(fileList) {
-  const files = [...(fileList || [])];
-  const romFiles = files.filter((f) => /\.(gb|gbc|sgb|bin)$/i.test(f.name));
-  const zipCount = files.filter((f) => /\.zip$/i.test(f.name)).length;
-  if (!romFiles.length) {
+async function importRomFiles(fileList) {
+  const files = [...(fileList || [])].filter((f) => /\.(gb|gbc|sgb|bin)$/i.test(f.name));
+  const zipCount = [...(fileList || [])].filter((f) => /\.zip$/i.test(f.name)).length;
+  if (!files.length) {
     romStatus.textContent = zipCount
-      ? "Esa carpeta tiene .zip. Descomprimilos o escribí la ruta completa y dale a Cargar ruta."
-      : "Esa carpeta no tiene .gb / .gbc.";
+      ? "Los .zip no se importan acá. Descomprimí y elegí los .gb / .gbc."
+      : "No hay .gb / .gbc en esa selección.";
     return;
   }
-  const folder = (romFiles[0].webkitRelativePath || romFiles[0].name).split(/[/\\]/)[0];
-  document.getElementById("rom-path").value = folder;
-  roms = romFiles
-    .sort((a, b) => a.name.localeCompare(b.name, "es"))
-    .map((file) => ({ name: file.name, file, folder }));
-  romStatus.textContent = `${roms.length} cartucho(s) en ${folder}`;
-  renderRomSidebar();
-  if (mode === "menu") drawMenu();
+  romStatus.textContent = `Guardando ${files.length} ROM(s)…`;
+  for (const file of files) {
+    const data = await file.arrayBuffer();
+    await putRom({ name: file.name, data });
+  }
+  await refreshRoms();
 }
 
 function renderRomSidebar() {
@@ -143,33 +110,46 @@ function renderRomSidebar() {
     const b = document.createElement("button");
     b.type = "button";
     b.textContent = r.name;
-    b.addEventListener("click", () => loadRomFromServer(r));
-    li.append(b);
+    b.addEventListener("click", () => loadStoredRom(r.id));
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "rom-del";
+    del.textContent = "×";
+    del.title = "Quitar de este navegador";
+    del.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      await deleteRom(r.id);
+      await refreshRoms();
+    });
+    const wrap = document.createElement("div");
+    wrap.className = "rom-row";
+    wrap.append(b, del);
+    li.append(wrap);
     romListEl.append(li);
   });
 }
 
-async function loadRomFromServer(r) {
-  romStatus.textContent = `Cargando ${r.name}…`;
+async function loadStoredRom(id) {
+  romStatus.textContent = "Cargando cartucho…";
   try {
-    let buf;
-    if (r.file) buf = await r.file.arrayBuffer();
-    else {
-      const res = await fetch(r.url);
-      buf = await res.arrayBuffer();
-    }
-    await startRom(buf, r.name);
+    const row = await getRom(id);
+    if (!row) throw new Error("ROM no encontrada");
+    const saveRam = await getSave(id);
+    await startRom(row.data, row.name, id, saveRam);
   } catch (err) {
     romStatus.textContent = `No se pudo cargar: ${err.message || err}`;
   }
 }
 
-async function startRom(buffer, name) {
+async function startRom(buffer, name, saveId, saveRam) {
   audio.ensure();
   mode = "rom";
   try {
     if (emu.audioCtx) await emu.audioCtx.resume?.();
-    await emu.load(buffer, name);
+    emu.onSaveRam = (sid, ram) => {
+      if (sid) putSave(sid, ram);
+    };
+    await emu.load(buffer, name, { saveId: saveId || name, saveRam });
     if (emu.audioCtx) await emu.audioCtx.resume();
     romStatus.textContent = `Jugando ${name}`;
   } catch (err) {
@@ -212,7 +192,7 @@ function activate() {
     snake.reset();
     mode = "snake";
   } else if (it.kind === "rom") {
-    loadRomFromServer(it.rom);
+    loadStoredRom(it.rom.id);
   } else if (it.kind === "file") {
     document.getElementById("rom-file").click();
   }
@@ -272,6 +252,7 @@ function tick(now) {
 
 pad.bind();
 initShells({ audio });
+initPwa();
 window.addEventListener("pointerdown", () => audio.ensure(), { once: true });
 window.addEventListener("keydown", () => audio.ensure(), { once: true });
 power.addEventListener("change", () => {
@@ -282,18 +263,16 @@ power.addEventListener("change", () => {
 
 document.getElementById("refresh-roms").addEventListener("click", refreshRoms);
 document.getElementById("rom-dir").addEventListener("change", (e) => {
-  loadPickedFolder(e.target.files);
+  importRomFiles(e.target.files);
   e.target.value = "";
-});
-document.getElementById("rom-path-btn").addEventListener("click", setRomFolder);
-document.getElementById("rom-path").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") setRomFolder();
 });
 document.getElementById("rom-file").addEventListener("change", async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
-  const buf = await file.arrayBuffer();
-  await startRom(buf, file.name);
+  await importRomFiles([file]);
+  const rows = await listRoms();
+  const last = rows.find((r) => r.name === file.name);
+  if (last) await loadStoredRom(last.id);
   e.target.value = "";
 });
 

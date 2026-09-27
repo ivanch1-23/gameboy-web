@@ -1,34 +1,59 @@
-# GAME BOY en el browser
+# GAME BOY PWA
 
-Carcasa DMG, LCD verdoso, D-pad, boot splash, Tetris, Snake, carcasas temáticas y lector de ROMs `.gb` / `.gbc` (emulador [binjgb](https://github.com/binji/binjgb), MIT).
+Emulador de Game Boy **100% en el cliente** (WebAssembly). Tetris, Snake, carcasas y ROMs `.gb` / `.gbc` que vos subís; se guardan en **IndexedDB** de tu navegador.
 
-## Arranque
+El `server.py` local **no emula ni guarda partidas**: solo sirve archivos estáticos para probar en tu PC.
 
-Desde la carpeta del repo (cualquier disco, C: o D:):
+## Correr en local
+
+Python 3:
 
 ```bat
 start.bat
 ```
 
-o:
+o `python server.py` y abrí http://127.0.0.1:8765
 
-```bat
-python server.py
-```
+## Auditoría (qué era el backend)
 
-Abrí [http://127.0.0.1:8765](http://127.0.0.1:8765).
+| Pieza | Dónde corre |
+| --- | --- |
+| CPU/PPU/APU Game Boy | `vendor/binjgb` (WASM) en el navegador |
+| Tetris / Snake / UI | JavaScript |
+| Lista de ROMs y SRAM | IndexedDB |
+| Carcasa / tamaño | `localStorage` |
+| Python | opcional, HTTP estático |
 
-## ROMs
+En internet **no hace falta Python**. Un sitio no puede leer `C:\` ni `D:\`; por eso Examinar / Abrir archivo copian la ROM a IndexedDB.
 
-En el panel izquierdo, junto a **Abrir archivo**, pegá la ruta de la carpeta donde bajaste los cartuchos (por ejemplo `C:\Roms` o `D:\juegos\gb`) y dale a **Usar ruta**. El servidor lista `.gb`, `.gbc` y `.zip` de esa carpeta.
+## PWA
 
-También vale la carpeta `roms` del propio repo. No se incluye ninguna ROM comercial.
+- `manifest.webmanifest` — `display: standalone`
+- `sw.js` — cache-first del core (HTML/JS/CSS/WASM) para offline
+- Botón **Instalar app** cuando el navegador dispara `beforeinstallprompt`
+
+## Hosting: Cloudflare Pages (recomendado)
+
+Es estático: no hay cold start de un dyno Python (Render), el WASM se sirve desde CDN, el plan gratis aguanta bien este tamaño, y el deploy es git push.
+
+**Por qué no las otras (para este repo):**
+
+- **Render**: pensado para procesos; un `python server.py` se duerme y tarda en despertar.
+- **Vercel / Netlify**: también sirven para estático; Cloudflare Pages suele ser igual de simple y el `_headers` para `.wasm` es directo.
+
+### Paso a paso
+
+1. Subí el repo a GitHub (ya: `ivanch1-23/gameboy-web`).
+2. Entrá a [Cloudflare Pages](https://pages.cloudflare.com/) con una cuenta gratis.
+3. **Create project** → **Connect to Git** → elegí `gameboy-web`.
+4. Build: **Framework preset = None**. **Build command** vacío. **Output directory** = `/` (raíz del repo).
+5. Deploy. La URL queda tipo `https://gameboy-web.pages.dev`.
+6. HTTPS viene incluido (hace falta para Service Worker e instalar PWA).
+
+El archivo `_headers` ya declara `Content-Type: application/wasm`.
+
+No incluyas ROMs comerciales en el repo.
 
 ## Controles
 
-- D-pad / WASD
-- A: X o K
-- B: Z o J
-- START: Enter
-- SELECT: Shift
-- SELECT + START: volver al menú
+D-pad / WASD · A = X/K · B = Z/J · START = Enter · SELECT = Shift · SELECT+START = menú

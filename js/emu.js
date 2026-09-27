@@ -33,6 +33,9 @@ export class GbEmu {
     this.leftover = 0;
     this.volume = 0.45;
     this.ready = false;
+    this.saveId = null;
+    this.saveTimer = 0;
+    this.onSaveRam = null;
   }
 
   async init() {
@@ -43,7 +46,7 @@ export class GbEmu {
     this.ready = true;
   }
 
-  async load(romBuffer, title = "ROM") {
+  async load(romBuffer, title = "ROM", extra = {}) {
     await this.init();
     this.stop();
     const size = (romBuffer.byteLength + 0x7fff) & ~0x7fff;
@@ -80,6 +83,10 @@ export class GbEmu {
     this.audioPtr = this.module._get_audio_buffer_ptr(this.e);
     this.audioCap = this.module._get_audio_buffer_capacity(this.e);
     this.title = title;
+    this.saveId = extra?.saveId || title;
+    if (extra?.saveRam?.byteLength) {
+      this.loadExtRam(extra.saveRam);
+    }
     this.running = true;
     this.lastRaf = 0;
     this.leftover = 0;
@@ -136,6 +143,38 @@ export class GbEmu {
     this.audioStart += AUDIO_FRAMES / this.audioCtx.sampleRate;
   }
 
+  getExtRam() {
+    if (!this.e) return null;
+    const filePtr = this.module._ext_ram_file_data_new(this.e);
+    this.module._emulator_write_ext_ram(this.e, filePtr);
+    const ptr = this.module._get_file_data_ptr(filePtr);
+    const size = this.module._get_file_data_size(filePtr);
+    const copy = new Uint8Array(wasmBytes(this.module, ptr, size)).slice();
+    this.module._file_data_delete(filePtr);
+    return copy;
+  }
+
+  loadExtRam(buffer) {
+    if (!this.e || !buffer) return;
+    const filePtr = this.module._ext_ram_file_data_new(this.e);
+    const ptr = this.module._get_file_data_ptr(filePtr);
+    const size = this.module._get_file_data_size(filePtr);
+    const view = wasmBytes(this.module, ptr, size);
+    const src = new Uint8Array(buffer);
+    if (src.byteLength && src.byteLength === view.byteLength) {
+      view.set(src);
+      this.module._emulator_read_ext_ram(this.e, filePtr);
+    }
+    this.module._file_data_delete(filePtr);
+  }
+
+  maybePersistRam() {
+    if (!this.e || !this.onSaveRam) return;
+    if (!this.module._emulator_was_ext_ram_updated(this.e)) return;
+    const ram = this.getExtRam();
+    if (ram) this.onSaveRam(this.saveId, ram);
+  }
+
   loop(startMs) {
     if (!this.running) return;
     this.raf = requestAnimationFrame((t) => this.loop(t));
@@ -147,9 +186,15 @@ export class GbEmu {
     this.leftover = (this.ticks() - runUntilTicks) | 0;
     this.lastRaf = startSec;
     this.ctx2d.putImageData(this.imageData, 0, 0);
+    this.saveTimer += 1;
+    if (this.saveTimer % 120 === 0) this.maybePersistRam();
   }
 
   stop() {
+    if (this.e && this.onSaveRam) {
+      const ram = this.getExtRam();
+      if (ram?.byteLength) this.onSaveRam(this.saveId, ram);
+    }
     this.running = false;
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = null;
