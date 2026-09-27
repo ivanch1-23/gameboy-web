@@ -230,23 +230,37 @@ export class Pad {
     const bindEl = (el) => {
       const btn = el.dataset.btn;
       const on = (ev) => {
+        if (ev.type.startsWith("pointer") && ev.pointerType === "touch") return;
         ev.preventDefault();
+        if (ev.pointerId != null && el.setPointerCapture) {
+          try {
+            el.setPointerCapture(ev.pointerId);
+          } catch {
+            /* iOS Safari can reject capture on some targets */
+          }
+        }
         this.set(btn, true);
       };
       const off = (ev) => {
+        if (ev.type.startsWith("pointer") && ev.pointerType === "touch") return;
         ev.preventDefault();
         this.set(btn, false);
       };
       el.addEventListener("pointerdown", on);
       el.addEventListener("pointerup", off);
-      el.addEventListener("pointerleave", off);
       el.addEventListener("pointercancel", off);
-      el.addEventListener("click", (ev) => {
-        ev.preventDefault();
-        this.set(btn, true);
-        window.setTimeout(() => this.set(btn, false), 90);
-      });
+      el.addEventListener("lostpointercapture", off);
+      el.addEventListener("touchstart", on, { passive: false });
+      el.addEventListener("touchend", off, { passive: false });
+      el.addEventListener("touchcancel", off, { passive: false });
+      el.addEventListener("contextmenu", (ev) => ev.preventDefault());
+      el.addEventListener("click", (ev) => ev.preventDefault());
     };
     document.querySelectorAll("[data-btn]").forEach(bindEl);
+    const shell = document.querySelector(".gb");
+    if (shell) {
+      shell.addEventListener("contextmenu", (ev) => ev.preventDefault());
+      shell.addEventListener("selectstart", (ev) => ev.preventDefault());
+    }
   }
 }

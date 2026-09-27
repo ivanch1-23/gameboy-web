@@ -1,4 +1,4 @@
-const CACHE = "gb-pwa-v4";
+const CACHE = "gb-pwa-v5";
 const CORE = [
   "./",
   "./index.html",
@@ -15,6 +15,7 @@ const CORE = [
   "./js/tetris.js",
   "./vendor/binjgb/binjgb.js",
   "./vendor/binjgb/binjgb.wasm",
+  "./icons/icon-180.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
 ];

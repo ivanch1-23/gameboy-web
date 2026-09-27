@@ -46,6 +46,11 @@ body {
   transition: background 0.35s ease;
   color: #efe6c8;
   font-family: "Segoe UI", system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
 
 body {
@@ -552,6 +557,24 @@ body.expanded #size-expand {
   position: relative;
   width: 126px;
   height: 126px;
+}
+
+.gb,
+.gb button,
+.gb canvas {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-drag: none;
+}
+
+.controls,
+.ss,
+.dpad,
+[data-btn] {
+  touch-action: none;
+  -webkit-touch-callout: none;
 }
 
 .dpad-btn {
