@@ -152,6 +152,10 @@ body.expanded .gb-stage {
   background: #7dffb3;
 }
 
+#net-status.is-offline {
+  color: #ffd166;
+}
+
 .rom-list li button {
   width: 100%;
   text-align: left;

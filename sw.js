@@ -1,4 +1,4 @@
-const CACHE = "gb-pwa-v5";
+const CACHE = "gb-pwa-v7";
 const CORE = [
   "./",
   "./index.html",
@@ -22,10 +22,13 @@ const CORE = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.addAll(CORE))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE).then(async (cache) => {
+      await Promise.all(
+        CORE.map((url) =>
+          cache.add(new Request(url, { cache: "reload" })).catch(() => null)
+        )
+      );
+    }).then(() => self.skipWaiting())
   );
 });
 
@@ -38,40 +41,63 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  if (req.method !== "GET") return;
+function sameOrigin(req) {
+  try {
+    return new URL(req.url).origin === self.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+function cacheKey(req) {
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
+  return url.origin + url.pathname;
+}
 
-  const networkFirst = /\.(?:js|css|html|webmanifest)$/.test(url.pathname) || url.pathname.endsWith("/");
+async function fromCache(req) {
+  const exact = await caches.match(req);
+  if (exact) return exact;
+  const ignored = await caches.match(req, { ignoreSearch: true });
+  if (ignored) return ignored;
+  const url = new URL(req.url);
+  if (url.pathname.endsWith("/") || req.mode === "navigate") {
+    return (await caches.match("./index.html")) || (await caches.match("./"));
+  }
+  return null;
+}
 
-  if (networkFirst) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (res && res.status === 200) {
-            const copy = res.clone();
-            caches.open(CACHE).then((cache) => cache.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => caches.match(req).then((cached) => cached || caches.match("./index.html")))
-    );
+function updateCache(req, res) {
+  if (!res || res.status !== 200 || (res.type !== "basic" && res.type !== "cors" && res.type !== "default")) {
     return;
   }
+  const copy = res.clone();
+  caches.open(CACHE).then((cache) => cache.put(cacheKey(req), copy)).catch(() => {});
+}
+
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET" || !sameOrigin(req)) return;
 
   event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req)
+    (async () => {
+      const cached = await fromCache(req);
+      const network = fetch(req)
         .then((res) => {
-          if (!res || res.status !== 200 || res.type === "opaque") return res;
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(req, copy));
+          updateCache(req, res);
           return res;
         })
-        .catch(() => caches.match("./index.html"));
-    })
+        .catch(() => null);
+
+      if (cached) {
+        event.waitUntil(network);
+        return cached;
+      }
+
+      const fresh = await network;
+      if (fresh) return fresh;
+      const fallback = await fromCache(req);
+      if (fallback) return fallback;
+      return new Response("Offline", { status: 503, statusText: "Offline" });
+    })()
   );
 });

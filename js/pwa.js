@@ -1,25 +1,47 @@
 let deferredPrompt = null;
 
+function setHint(hint, text) {
+  if (!hint) return;
+  hint.hidden = false;
+  hint.textContent = text;
+}
+
+function updateNetStatus() {
+  const el = document.getElementById("net-status");
+  if (!el) return;
+  const online = navigator.onLine !== false;
+  el.hidden = false;
+  el.classList.toggle("is-offline", !online);
+  el.textContent = online
+    ? "Offline listo: Tetris, Snake y las ROMs ya guardadas en este teléfono."
+    : "Sin internet. Podés seguir jugando con lo que ya está en el teléfono.";
+}
+
 export function initPwa() {
   const installBtn = document.getElementById("install-pwa");
   const hint = document.getElementById("install-hint");
-  if (!installBtn) return;
+  updateNetStatus();
+  window.addEventListener("online", updateNetStatus);
+  window.addEventListener("offline", updateNetStatus);
+
+  if (navigator.storage?.persist) {
+    navigator.storage.persist().catch(() => {});
+  }
 
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
-    });
+    const register = () => navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
+    if (document.readyState === "complete") register();
+    else window.addEventListener("load", register);
   }
+
+  if (!installBtn) return;
 
   const standalone =
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
 
   if (standalone) {
     installBtn.hidden = true;
-    if (hint) {
-      hint.hidden = false;
-      hint.textContent = "App instalada en este dispositivo.";
-    }
+    setHint(hint, "App instalada. Abrila una vez con internet y después funciona sin señal.");
     return;
   }
 
@@ -33,10 +55,7 @@ export function initPwa() {
   window.addEventListener("appinstalled", () => {
     deferredPrompt = null;
     installBtn.hidden = true;
-    if (hint) {
-      hint.hidden = false;
-      hint.textContent = "App instalada.";
-    }
+    setHint(hint, "App instalada. Abrila una vez con internet y después funciona sin señal.");
   });
 
   installBtn.addEventListener("click", async () => {
@@ -47,11 +66,11 @@ export function initPwa() {
       return;
     }
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    if (hint) {
-      hint.hidden = false;
-      hint.textContent = ios
-        ? "En Safari: Compartir → Agregar a pantalla de inicio."
-        : "En el menú del navegador: Instalar app / Agregar a pantalla de inicio.";
-    }
+    setHint(
+      hint,
+      ios
+        ? "En Safari: Compartir → Agregar a pantalla de inicio. Abrila una vez con internet."
+        : "En el menú del navegador: Instalar app / Agregar a pantalla de inicio."
+    );
   });
 }
